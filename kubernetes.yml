@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: Magento Kubernetes
+  labels:
+    app: Magento2
+spec:
+  selector:
+    matchLabels:
+      octopusexport: OctopusExport
+  revisionHistoryLimit: 5
+  replicas: 2
+  progressDeadlineSeconds: 600
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: Magento2
+        octopusexport: OctopusExport
+    spec:
+      dnsPolicy: Default
+      hostNetwork: true
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: magento
+          hostPath:
+            path: /var/www/html/magento
+            type: DirectoryOrCreate
+      containers:
+        - name: magento-docker
+          image: 387688863714.dkr.ecr.us-east-2.amazonaws.com/magento2
+          imagePullPolicy: IfNotPresent
+          terminationMessagePolicy: File
+          ports:
+            - name: Web
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - name: magento
+              mountPath: /var/www/html/magento/
+              subPath: ''
+          resources:
+            requests:
+              memory: '1000'
+              cpu: '200'
+            limits:
+              memory: '1000'
+              cpu: '200'
+          securityContext:
+            privileged: true
+            runAsGroup: ''
+            runAsNonRoot: true
+      securityContext:
+        runAsNonRoot: true
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - web
+                topologyKey: kubernetes.io/hostname
