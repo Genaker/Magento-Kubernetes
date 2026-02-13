@@ -1,0 +1,196 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: magento-config
+  namespace: magento
+data:
+  MAGENTO_RUN_MODE: "production"
+  MAGENTO_DEPLOYMENT_MODE: "production"
+  MYSQL_HOST: "mysql"
+  MYSQL_PORT: "3306"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  ELASTICSEARCH_HOST: "elasticsearch"
+  ELASTICSEARCH_PORT: "9200"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: magento
+  namespace: magento
+  labels:
+    app: magento
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+    - port: 443
+      targetPort: 443
+      protocol: TCP
+      name: https
+  selector:
+    app: magento
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: magento
+  namespace: magento
+  labels:
+    app: magento
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: magento
+  template:
+    metadata:
+      labels:
+        app: magento
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z mysql 3306; do
+                echo "Waiting for MySQL to be ready..."
+                sleep 2
+              done
+        - name: wait-for-redis
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z redis 6379; do
+                echo "Waiting for Redis to be ready..."
+                sleep 2
+              done
+        - name: wait-for-elasticsearch
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z elasticsearch 9200; do
+                echo "Waiting for Elasticsearch to be ready..."
+                sleep 2
+              done
+      containers:
+        - name: magento
+          image: magento:2.4-apache
+          ports:
+            - containerPort: 80
+              name: http
+              protocol: TCP
+            - containerPort: 443
+              name: https
+              protocol: TCP
+          env:
+            - name: MAGENTO_RUN_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: magento-config
+                  key: MAGENTO_RUN_MODE
+            - name: MYSQL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: magento-config
+                  key: MYSQL_HOST
+            - name: MYSQL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: magento-config
+                  key: MYSQL_PORT
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_DATABASE
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_PASSWORD
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: magento-config
+                  key: REDIS_HOST
+            - name: ELASTICSEARCH_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: magento-config
+                  key: ELASTICSEARCH_HOST
+          volumeMounts:
+            - name: magento-persistent-storage
+              mountPath: /var/www/html
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "1000m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          livenessProbe:
+            httpGet:
+              path: /health_check.php
+              port: 80
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health_check.php
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            # Magento container typically requires some root capabilities for proper operation
+            # such as binding to privileged ports and file ownership management.
+            # For improved security, consider using a custom Magento image that runs as non-root.
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+                - CHOWN
+                - SETGID
+                - SETUID
+      volumes:
+        - name: magento-persistent-storage
+          persistentVolumeClaim:
+            claimName: magento-pvc
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - magento
+                topologyKey: kubernetes.io/hostname
