@@ -1,0 +1,42 @@
+# Kubernetes temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+/dist/
+/build/
+
+# Secrets (never commit real secrets!)
+*-secret.yaml.bak
+*.key
+*.crt
+*.pem
+
+# Helm charts (if added later)
+charts/
+*.tgz
+
+# Backup files
+*.bak
+*.backup
+
+# Local testing
+minikube/
+kind/
+k3s/
+
+# Terraform state (if used)
+*.tfstate
+*.tfstate.*
+.terraform/
