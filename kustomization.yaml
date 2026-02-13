@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: magento
+
+resources:
+  - namespace.yaml
+  - local-volumes.yaml
+  - mysql-deployment.yaml
+  - redis-deployment.yaml
+  - elasticsearch-deployment.yaml
+  - magento-deployment.yaml
+  - ingress.yaml
+  - network-policy.yaml
+
+labels:
+  - pairs:
+      project: magento2
+      managed-by: kustomize
+
+# Configuration for the application
+configMapGenerator:
+  - name: magento-env
+    literals:
+      - MAGENTO_LANGUAGE=en_US
+      - MAGENTO_TIMEZONE=America/New_York
+      - MAGENTO_CURRENCY=USD
+
+# Images can be customized here
+images:
+  - name: magento
+    newName: magento/magento-cloud-docker-php
+    newTag: "8.1-fpm"

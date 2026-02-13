@@ -1,26 +1,33 @@
+---
+# Legacy deployment configuration - kept for reference
+# For production use, please use the modern deployment files
+# (magento-deployment.yaml, mysql-deployment.yaml, etc.)
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: Magento Kubernetes
+  name: magento-legacy
+  namespace: default
   labels:
-    app: Magento2
+    app: magento-legacy
 spec:
   selector:
     matchLabels:
-      octopusexport: OctopusExport
+      app: magento-legacy
   revisionHistoryLimit: 5
   replicas: 2
   progressDeadlineSeconds: 600
   strategy:
     type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
-        app: Magento2
-        octopusexport: OctopusExport
+        app: magento-legacy
     spec:
-      dnsPolicy: Default
-      hostNetwork: true
+      dnsPolicy: ClusterFirst
       terminationGracePeriodSeconds: 60
       volumes:
         - name: magento
@@ -29,11 +36,12 @@ spec:
             type: DirectoryOrCreate
       containers:
         - name: magento-docker
-          image: 387688863714.dkr.ecr.us-east-2.amazonaws.com/magento2
+          # Replace with your own image
+          image: magento:2.4-apache
           imagePullPolicy: IfNotPresent
           terminationMessagePolicy: File
           ports:
-            - name: Web
+            - name: web
               containerPort: 80
               protocol: TCP
           volumeMounts:
@@ -42,17 +50,22 @@ spec:
               subPath: ''
           resources:
             requests:
-              memory: '1000'
-              cpu: '200'
+              memory: "1Gi"
+              cpu: "200m"
             limits:
-              memory: '1000'
-              cpu: '200'
+              memory: "2Gi"
+              cpu: "1000m"
           securityContext:
-            privileged: true
-            runAsGroup: ''
-            runAsNonRoot: true
-      securityContext:
-        runAsNonRoot: true
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+                - CHOWN
+                - SETGID
+                - SETUID
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -63,5 +76,5 @@ spec:
                     - key: app
                       operator: In
                       values:
-                        - web
+                        - magento-legacy
                 topologyKey: kubernetes.io/hostname
