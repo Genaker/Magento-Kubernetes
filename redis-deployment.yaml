@@ -13,7 +13,7 @@ spec:
       name: redis
   selector:
     app: redis
-  clusterIP: None
+  type: ClusterIP  # Standard ClusterIP for stateless cache
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -23,7 +23,7 @@ metadata:
   labels:
     app: redis
 spec:
-  replicas: 1
+  replicas: 1  # For production with persistence, consider StatefulSet with 3+ replicas
   selector:
     matchLabels:
       app: redis

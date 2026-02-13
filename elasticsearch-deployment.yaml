@@ -38,6 +38,10 @@ spec:
         app: elasticsearch
     spec:
       initContainers:
+        # Note: This init container requires privileged access to set kernel parameters.
+        # For production, it's recommended to set vm.max_map_count=262144 on the host nodes directly.
+        # Run on each node: sudo sysctl -w vm.max_map_count=262144
+        # Make permanent: echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
         - name: increase-vm-max-map
           image: busybox
           command:

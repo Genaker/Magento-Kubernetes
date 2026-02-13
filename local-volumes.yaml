@@ -15,6 +15,11 @@ spec:
     path: "/mnt/data/mysql"
     type: DirectoryOrCreate
 ---
+# Note: hostPath storage only supports ReadWriteOnce access mode.
+# For ReadWriteMany (shared storage across multiple pods), use:
+# - NFS server for on-premises
+# - AWS EFS, Google Filestore, or Azure Files for cloud deployments
+# See examples/ directory for cloud-specific configurations.
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -27,7 +32,7 @@ spec:
   capacity:
     storage: 20Gi
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce  # hostPath only supports ReadWriteOnce
   hostPath:
     path: "/mnt/data/magento"
     type: DirectoryOrCreate
@@ -74,7 +79,7 @@ metadata:
 spec:
   storageClassName: manual
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce  # For ReadWriteMany, use NFS or cloud storage
   resources:
     requests:
       storage: 20Gi

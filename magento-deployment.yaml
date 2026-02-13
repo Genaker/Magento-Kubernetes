@@ -165,6 +165,9 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 3
           securityContext:
+            # Magento container typically requires some root capabilities for proper operation
+            # such as binding to privileged ports and file ownership management.
+            # For improved security, consider using a custom Magento image that runs as non-root.
             runAsNonRoot: false
             allowPrivilegeEscalation: false
             capabilities:
